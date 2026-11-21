@@ -1,56 +1,73 @@
-/* ===== NAVBAR ===== */
-const navLinks = document.querySelectorAll('.nav-links a');
-const sections  = document.querySelectorAll('section[id]');
+/* ===== NAVBAR (mobile) ===== */
+const navLinks  = document.querySelectorAll('.nav-links a');
 const navToggle = document.querySelector('.nav-toggle');
 const navMenu   = document.querySelector('.nav-links');
-
 navToggle?.addEventListener('click', () => navMenu.classList.toggle('open'));
-navLinks.forEach(l => l.addEventListener('click', () => navMenu.classList.remove('open')));
 
-function updateActiveLink() {
-  let current = '';
-  sections.forEach(s => { if (window.scrollY >= s.offsetTop - 100) current = s.id; });
-  navLinks.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + current));
+/* ===== SINGLE-PAGE NAVIGATION (one section displayed at a time) ===== */
+const pages   = Array.from(document.querySelectorAll('section[id]'));
+const pageIds = pages.map(p => p.id);
+const DEFAULT_PAGE = 'home';
+
+function showPage(id) {
+  if (!pageIds.includes(id)) id = DEFAULT_PAGE;
+
+  pages.forEach(p => {
+    const on = p.id === id;
+    p.classList.toggle('active', on);
+    p.style.display = on ? (p.classList.contains('hero') ? 'flex' : 'block') : 'none';
+  });
+  navLinks.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id));
+
+  navMenu?.classList.remove('open');
+  closeLightbox();
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
-window.addEventListener('scroll', updateActiveLink, { passive: true });
+
+/* Intercept every internal link (#research, #cv, ...) : menu, hero buttons, etc. */
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href^="#"]');
+  if (!a) return;
+  const id = a.getAttribute('href').slice(1);
+  if (!pageIds.includes(id)) return;
+  e.preventDefault();
+  if (location.hash === '#' + id) showPage(id);   // same page: just refresh view
+  else location.hash = id;                        // triggers hashchange
+});
+
+/* Back/forward buttons + direct links (site.com/#publications) */
+window.addEventListener('hashchange', () => showPage(location.hash.slice(1)));
+showPage(location.hash.slice(1));
 
 /* ===== SCROLL REVEAL ===== */
 const revealEls = document.querySelectorAll(
-  '.project-card, .pub-item, .conf-item, .cv-item, .skills-group, .contact-item, .award-item, .sport-item, .conf-stat'
+  '.project-card, .pub-item, .conf-item, .cv-item, .skill-domain, .contact-item, .award-item, .sport-item, .conf-stat'
 );
 revealEls.forEach(el => el.classList.add('reveal'));
 const observer = new IntersectionObserver((entries) => {
   entries.forEach((e, i) => {
     if (e.isIntersecting) {
-      setTimeout(() => e.target.classList.add('visible'), i * 60);
-      observer.unobserve(e.target);
+      const el = e.target;
+      setTimeout(() => el.classList.add('visible'), i * 60);
+      /* once the fade-in is done, drop the reveal classes so the
+         normal hover effects (lift, shadow, border) work again */
+      setTimeout(() => el.classList.remove('reveal', 'visible'), i * 60 + 700);
+      observer.unobserve(el);
     }
   });
 }, { threshold: 0.08 });
 revealEls.forEach(el => observer.observe(el));
 
-/* ===== CONTACT FORM ===== */
-function handleContact(e) {
-  e.preventDefault();
-  const name    = document.getElementById('name').value;
-  const email   = document.getElementById('email').value;
-  const subject = document.getElementById('subject')?.value || 'Contact from website';
-  const message = document.getElementById('message').value;
-  const mailto  = `mailto:zinsou.kpetchehoue-merveille-santi@ugb.edu.sn?subject=${encodeURIComponent(subject + ' - ' + name)}&body=${encodeURIComponent(message + '\n\nFrom: ' + name + ' (' + email + ')')}`;
-  window.location.href = mailto;
-  document.getElementById('form-msg').textContent = '✓ Opening your mail client...';
-}
-
-/* ===== NAVBAR BG on scroll ===== */
+/* ===== NAVBAR : shadow once the page is scrolled ===== */
 const navbar = document.getElementById('navbar');
 window.addEventListener('scroll', () => {
-  navbar.style.background = window.scrollY > 50 ? 'rgba(13,15,20,0.97)' : 'rgba(13,15,20,0.88)';
+  navbar.classList.toggle('scrolled', window.scrollY > 10);
 }, { passive: true });
 
 /* ===== CV TABS ===== */
 function switchTab(id, btn) {
   document.querySelectorAll('.cv-tab-panel').forEach(p => p.classList.add('hidden'));
-  document.querySelectorAll('.cv-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#cv .cv-tab').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + id).classList.remove('hidden');
   btn.classList.add('active');
 }
@@ -58,6 +75,7 @@ function switchTab(id, btn) {
 /* ===== LIGHTBOX (image + video) ===== */
 function openLightbox(src, caption) {
   const lb = document.getElementById('lightbox');
+  if (!lb) return;
   const img = document.getElementById('lb-img');
   const vid = document.getElementById('lb-video-wrap');
   img.src = src; img.style.display = 'block';
@@ -69,6 +87,7 @@ function openLightbox(src, caption) {
 
 function openVideo(src, caption) {
   const lb = document.getElementById('lightbox');
+  if (!lb) return;
   const img = document.getElementById('lb-img');
   const vid = document.getElementById('lb-video-wrap');
   img.style.display = 'none'; img.src = '';
@@ -94,6 +113,7 @@ function openVideo(src, caption) {
 
 function closeLightbox() {
   const lb = document.getElementById('lightbox');
+  if (!lb) return;
   lb.classList.remove('open');
   document.body.style.overflow = '';
   /* Stop video on close */
